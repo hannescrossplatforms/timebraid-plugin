@@ -46,6 +46,7 @@ async function stopEntry(state, at, ctx) {
     return true
   } catch (error) {
     ctx.store.log(`stop ${state.entryId} failed: ${error.message}`)
+    if (error.kind === 'tool' && at !== undefined) return stopEntry(state, undefined, ctx)
     return error.kind === 'tool'
   }
 }

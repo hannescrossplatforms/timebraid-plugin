@@ -130,6 +130,21 @@ describe('breaks', () => {
     assert.equal(ctx.store.session('thread-a').entryId, 'entry-3')
   })
 
+  it('stops at the server\'s now when it refuses the break end, as when this machine\'s clock runs ahead', async () => {
+    const client = fakeClient({
+      stop_timer: (args) => (args.at === undefined ? { stopped: 1, entries: [entry()] } : refused('at is in the future; it may be at most 60 seconds ahead.')),
+      start_timer: { entry: entry({ id: 'entry-2' }) }
+    })
+    const ctx = await trackedThread(context({ client }))
+    await onPrompt(input({ prompt: 'next' }), at(ctx, T0 + 60 * MINUTE))
+    assert.deepEqual(client.calls.map((call) => [call.name, call.args]), [
+      ['stop_timer', { entry: 'entry-1', at: T0 + 15 * MINUTE }],
+      ['stop_timer', { entry: 'entry-1' }],
+      ['start_timer', { task: 'task-1' }]
+    ])
+    assert.equal(ctx.store.session('thread-a').entryId, 'entry-2')
+  })
+
   it('asks for a new timer when the task is gone, and adopts one that already runs elsewhere', async () => {
     const gone = fakeClient({ start_timer: refused('no task matches') })
     const ctx = await trackedThread(context({ client: gone }))
