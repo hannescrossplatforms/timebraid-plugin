@@ -20,6 +20,8 @@ export function freshState(sessionId, cwd, now) {
     project: null,
     workspaceId: null,
     workspace: null,
+    beatAt: null,
+    leaseUntil: null,
     lastActivity: now,
     warned: false,
     updatedAt: now
@@ -43,6 +45,7 @@ function writeJson(path, value) {
 export function createStore(dataDir) {
   const sessionsDir = join(dataDir, 'sessions')
   const placesFile = join(dataDir, 'places.json')
+  const handoverFile = join(dataDir, 'handover.json')
   const logFile = join(dataDir, 'hook.log')
   mkdirSync(sessionsDir, { recursive: true, mode: 0o700 })
 
@@ -80,6 +83,22 @@ export function createStore(dataDir) {
       const all = readJson(placesFile) ?? {}
       all[folder] = place
       writeJson(placesFile, all)
+    },
+
+    saveHandover(folder, handover) {
+      const all = readJson(handoverFile) ?? {}
+      all[folder] = handover
+      writeJson(handoverFile, all)
+    },
+
+    takeHandover(folder) {
+      const all = readJson(handoverFile) ?? {}
+      const handover = all[folder] ?? null
+      if (handover) {
+        delete all[folder]
+        writeJson(handoverFile, all)
+      }
+      return handover
     },
 
     log(line) {

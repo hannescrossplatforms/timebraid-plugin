@@ -13,7 +13,7 @@ The Timebraid tools reach only the workspaces the user belongs to and only the u
 
 | Tool | Use it to |
 | --- | --- |
-| `list_workspaces` | See the workspaces, with each one's budget (hours per day, week or month) |
+| `list_workspaces` | See the workspaces, with each one's budget (hours per day, week or month) and how long an assistant's timer may stay quiet |
 | `list_projects` | See the projects, across every workspace or in one |
 | `list_tasks` | See a project's tasks, most recently worked first, and which are running |
 | `start_timer` | Start a timer on a task (a new task name creates the task) |
@@ -22,6 +22,7 @@ The Timebraid tools reach only the workspaces the user belongs to and only the u
 | `log_entry` | Record time already spent, ending now: `45m`, `1h30m`, `1:30` or `0.75` |
 | `update_entry` | Change an entry's note |
 | `today_summary` | Today's hours, per workspace and project |
+| `keep_alive` | Used by the plugin's hooks to keep this thread's timer running; you do not need it |
 
 ## How to work with it
 

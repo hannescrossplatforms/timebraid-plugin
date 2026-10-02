@@ -5,7 +5,7 @@ allowed-tools: mcp__plugin_timebraid_timebraid
 
 # Tracking this thread in Timebraid
 
-Every Claude Code thread is tracked as one timer on one task in Timebraid, so the user's clients and projects get the time the work took. The plugin's hooks handle the clock: they trim breaks, carry the timer across a resumed thread and stop it when the session ends. Your part is to start the timer on the right task, once, before the work begins.
+Every Claude Code thread is tracked as one timer on one task in Timebraid, so the user's clients and projects get the time the work took. The plugin's hooks handle the clock: they keep the timer alive while the thread is active, start it again on the same task when it stopped during a quiet spell, and stop it when the session ends. Your part is to start the timer on the right task, once, before the work begins.
 
 Timebraid's model: **workspaces** (a client or an area of life) hold **projects**, projects hold **tasks**, and time is **entries** on tasks. Every workspace has a project called **General** for time that has no project yet. Several timers can run at once (one per task), so parallel threads are normal.
 
@@ -29,7 +29,7 @@ Do this as the first thing in a thread, before reading files or answering at len
 
 ## 2. While the thread runs
 
-- Do not stop the timer when you finish a reply. Breaks are trimmed automatically and the hooks stop it when the session ends.
+- Do not stop the timer when you finish a reply, and do not call `keep_alive` yourself; the hooks do both. When the thread goes quiet for longer than the workspace allows (15 minutes unless the workspace says otherwise), Timebraid stops the timer and the user decides in the app whether to continue it or keep it stopped.
 - If the work clearly moves to a different project or work item, start a timer on the new task. The thread's previous timer stops by itself, because a thread owns one timer at a time.
 - If you started under General and the right project becomes clear, start the timer on a task in that project. The time so far stays in General, where the user can move the task with Move to project.
 - If `start_timer` says the task is already running (another thread is on it), use a more specific task name for this thread.

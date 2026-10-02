@@ -1,7 +1,7 @@
 {
   "name": "timebraid",
   "displayName": "Timebraid",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Tracks the time of every Claude Code thread in Timebraid, in the right workspace and project, and lets Claude log time and read your totals.",
   "author": { "name": "Hannes van Tonder" },
   "homepage": "https://github.com/hannescrossplatforms/timebraid-plugin",
@@ -20,14 +20,6 @@
       "title": "Timebraid server",
       "description": "The Timebraid API address. Leave the default unless you run your own server.",
       "default": "https://backend-production-e532.up.railway.app"
-    },
-    "idle_minutes": {
-      "type": "number",
-      "title": "Break after (minutes)",
-      "description": "How long after Claude's last reply a thread keeps counting. Time beyond this, until you come back, is left out.",
-      "default": 15,
-      "min": 1,
-      "max": 240
     }
   }
 }

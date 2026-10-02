@@ -37,7 +37,7 @@ export function tracking(state) {
 }
 
 export function paused(state) {
-  return `This thread was tracked in Timebraid as ${label(state)}. Its timer is paused after a break and restarts by itself on the next message.`
+  return `This thread was tracked in Timebraid as ${label(state)}. Its timer stopped while the thread was quiet or closed, and a new one starts on the same task with the next message.`
 }
 
 export function off() {

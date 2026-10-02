@@ -33,8 +33,9 @@ The hooks need Node.js 18 or newer on your `PATH`.
    - With the workspace clear but no project, the time goes to that workspace's **General** project. You can move the task later with Move to project.
    - With the workspace unclear, Claude asks you once before it starts.
 3. **During the thread.** A thread owns one timer. If the work moves to another project, Claude starts a new timer and the old one stops.
-4. **Breaks.** After Claude's last reply the thread keeps counting while you read, up to the break time (15 minutes by default). If you come back later, the time beyond that is cut and a new entry starts on the same task. A long run of tool calls keeps counting.
-5. **The end.** When the session ends, the timer stops at your last activity plus the break time. A resumed thread carries on with the same task on its next message. Timers left behind by a thread that was never closed are trimmed the next time any thread starts or you send a prompt.
+4. **Staying alive.** While the thread is active the hooks tell Timebraid it is still going: on each message, every few minutes of tool work, at the end of each reply, and before a long command. Subagents count too.
+5. **Quiet spells.** After Claude's last reply the timer keeps counting while you read or test, up to the workspace's quiet time (15 minutes unless an admin changed it in Timebraid's workspace settings). After that Timebraid stops it, at the end of the quiet time, and marks it **Stopped automatically**. On your next message the thread starts a new timer on the same task. In Timebraid, today's automatic stops wait at the bottom of Overview: **Continue** counts the time since as if the timer never stopped (it joins up with the new timer), **Stop** keeps it stopped. Anything left is confirmed as stopped at midnight. Entries keep a "Stopped automatically" or "Continued" tag.
+6. **The end.** When the session ends, the timer stops as an automatic stop, at the end of the quiet time when that is earlier, so you can still continue it from Overview. After `/clear` the fresh thread takes over the running timer instead. A resumed thread carries on with the same task on its next message. A thread that is never closed is stopped by Timebraid once it has been quiet too long.
 
 Parallel threads run parallel timers, and Timebraid's reports share overlapping time between them fairly.
 
@@ -54,7 +55,6 @@ You can also just ask: "log 45 minutes to Baker Street for the call", "how many 
 | --- | --- | --- |
 | Timebraid token | none | Your personal token, kept in your system keychain |
 | Timebraid server | `https://backend-production-e532.up.railway.app` | Change only for a self-hosted server |
-| Break after (minutes) | 15 | How long a thread keeps counting after Claude's last reply |
 
 ## Security
 
@@ -62,7 +62,7 @@ You can also just ask: "log 45 minutes to Baker Street for the call", "how many 
 - Timebraid stores only a SHA-256 digest of the token. Revoke it any time under Settings, Account, AI assistants.
 - Claude Code keeps the token in your system keychain. The hooks read it from their environment and never write it to disk or to the log.
 - The plugin talks only to the Timebraid server, over https (plain http is allowed for `localhost` only).
-- Local state lives in Claude Code's plugin data folder: one small file per thread (task and entry ids, last activity), the remembered places, and a short log without tokens or prompts.
+- Local state lives in Claude Code's plugin data folder: one small file per thread (task and entry ids, last activity, when the timer was last kept alive), the remembered places, a short-lived handover file for `/clear`, and a short log without tokens or prompts. Thread files are forgotten after a month.
 
 ## How it is built
 
@@ -74,7 +74,7 @@ You can also just ask: "log 45 minutes to Baker Street for the call", "how many 
 | Using Timebraid on request | `skills/timebraid/SKILL.md` |
 | Commands | `skills/track`, `skills/off`, `skills/status` |
 
-The hooks never block Claude: they exit cleanly on any error and log it to `hook.log` in the plugin data folder.
+The hooks never block Claude: they exit cleanly on any error and log it to `hook.log` in the plugin data folder. How long a quiet thread keeps counting is a workspace setting in Timebraid, not a plugin setting, so every assistant in a workspace follows the same rule.
 
 ## Troubleshooting
 

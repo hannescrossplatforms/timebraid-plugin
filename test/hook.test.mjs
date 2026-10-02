@@ -54,7 +54,7 @@ describe('the hook script', () => {
     assert.equal(JSON.parse(prompt.stdout).hookSpecificOutput.hookEventName, 'UserPromptSubmit')
   })
 
-  it('stops the thread\'s timer at session end through the server with the token, and never writes the token to disk', async () => {
+  it('keeps the timer alive and stops it automatically at session end through the server with the token, and never writes the token to disk', async () => {
     const data = tempDir()
     const env = { CLAUDE_PLUGIN_DATA: data, CLAUDE_PLUGIN_OPTION_API_TOKEN: TOKEN, CLAUDE_PLUGIN_OPTION_API_URL: url }
     await run('session-start', { session_id: 's2', cwd: '/w', source: 'startup' }, env)
@@ -65,7 +65,9 @@ describe('the hook script', () => {
       tool_input: { project: 'Website', task: 'Login' },
       tool_response: { structuredContent: { entry: { id: 'e-42', taskId: 't-1', task: 'Login', projectId: 'p-1', project: 'Website', workspaceId: 'w-1', workspace: 'Baker', startedAt: Date.now() } }, isError: false }
     }
+    received.length = 0
     assert.equal((await run('tool', tool, env)).stdout, '')
+    assert.deepEqual(received.map((call) => [call.body.params.name, call.body.params.arguments]), [['keep_alive', { entry: 'e-42' }]])
     received.length = 0
     const end = await run('session-end', { session_id: 's2', cwd: '/w', reason: 'prompt_input_exit' }, env)
     assert.equal(end.code, 0)
@@ -74,6 +76,7 @@ describe('the hook script', () => {
     assert.equal(received[0].auth, `Bearer ${TOKEN}`)
     assert.equal(received[0].body.params.name, 'stop_timer')
     assert.equal(received[0].body.params.arguments.entry, 'e-42')
+    assert.equal(received[0].body.params.arguments.automatic, true)
 
     const files = [join(data, 'places.json'), ...readdirSync(join(data, 'sessions')).map((name) => join(data, 'sessions', name))]
     for (const file of files) assert.equal(readFileSync(file, 'utf8').includes(TOKEN), false)

@@ -1,15 +1,14 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
-import { DEFAULT_IDLE_MINUTES, DEFAULT_URL, readConfig } from '../scripts/lib/config.mjs'
+import { DEFAULT_URL, readConfig } from '../scripts/lib/config.mjs'
 import { createClient, resultOf, TimebraidError } from '../scripts/lib/timebraid.mjs'
 
 const TOKEN = 'tally_mcp_test-secret'
 
 describe('settings', () => {
-  it('uses the live server and a 15 minute break by default, and needs a token', () => {
+  it('uses the live server by default, and needs a token', () => {
     const config = readConfig({ CLAUDE_PLUGIN_DATA: '/tmp/x' })
     assert.equal(config.url, DEFAULT_URL)
-    assert.equal(config.idleMs, DEFAULT_IDLE_MINUTES * 60_000)
     assert.equal(config.problem, 'missing-token')
     assert.equal(readConfig({ CLAUDE_PLUGIN_OPTION_API_TOKEN: TOKEN }).problem, null)
   })
@@ -20,13 +19,6 @@ describe('settings', () => {
     assert.equal(readConfig({ CLAUDE_PLUGIN_OPTION_API_TOKEN: TOKEN, CLAUDE_PLUGIN_OPTION_API_URL: 'http://localhost:3050/' }).problem, null)
     assert.equal(readConfig({ CLAUDE_PLUGIN_OPTION_API_TOKEN: TOKEN, CLAUDE_PLUGIN_OPTION_API_URL: 'http://localhost:3050/' }).url, 'http://localhost:3050')
     assert.equal(readConfig({ CLAUDE_PLUGIN_OPTION_API_TOKEN: TOKEN, CLAUDE_PLUGIN_OPTION_API_URL: 'not a url' }).problem, 'bad-url')
-  })
-
-  it('keeps the break between 1 and 240 minutes', () => {
-    assert.equal(readConfig({ CLAUDE_PLUGIN_OPTION_IDLE_MINUTES: '0' }).idleMs, 60_000)
-    assert.equal(readConfig({ CLAUDE_PLUGIN_OPTION_IDLE_MINUTES: '999' }).idleMs, 240 * 60_000)
-    assert.equal(readConfig({ CLAUDE_PLUGIN_OPTION_IDLE_MINUTES: '30' }).idleMs, 30 * 60_000)
-    assert.equal(readConfig({ CLAUDE_PLUGIN_OPTION_IDLE_MINUTES: 'soon' }).idleMs, DEFAULT_IDLE_MINUTES * 60_000)
   })
 })
 
