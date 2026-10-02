@@ -1,0 +1,14 @@
+{
+  "name": "timebraid",
+  "owner": {
+    "name": "Hannes van Tonder"
+  },
+  "description": "Timebraid for Claude Code: every chat thread tracked as a timer in the right workspace and project.",
+  "plugins": [
+    {
+      "name": "timebraid",
+      "source": "./",
+      "description": "Track the time of every Claude Code thread in Timebraid."
+    }
+  ]
+}
