@@ -43,8 +43,8 @@ export function fakeClient(script = {}) {
 export const refused = (message, data) => new TimebraidError(message, { kind: 'tool', data })
 export const unreachable = () => new TimebraidError('the server could not be reached', { kind: 'network' })
 
-export function context({ now = T0, problem = null, client = fakeClient(), dataDir = tempDir() } = {}) {
-  return { config: { problem, dataDir }, store: createStore(dataDir), client, now }
+export function context({ now = T0, problem = null, client = fakeClient(), dataDir = tempDir(), env = {} } = {}) {
+  return { config: { problem, dataDir }, store: createStore(dataDir), client, now, env }
 }
 
 export const at = (ctx, now) => ({ ...ctx, now })

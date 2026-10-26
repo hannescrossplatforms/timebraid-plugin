@@ -22,6 +22,7 @@ export function freshState(sessionId, cwd, now) {
     workspace: null,
     beatAt: null,
     leaseUntil: null,
+    shared: false,
     lastActivity: now,
     warned: false,
     updatedAt: now

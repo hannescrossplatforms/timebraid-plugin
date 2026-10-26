@@ -29,6 +29,7 @@ Do this as the first thing in a thread, before reading files or answering at len
 
 ## 2. While the thread runs
 
+- If the Timebraid context says this thread shares the timer of the thread that started it (a helper session), there is nothing to start: the hooks keep that timer alive while you work. Do not start or stop a timer there unless the user asks.
 - Do not stop the timer when you finish a reply, and do not call `keep_alive` yourself; the hooks do both. When the thread goes quiet for longer than the workspace allows (15 minutes unless the workspace says otherwise), Timebraid stops the timer and the user decides in the app whether to continue it or keep it stopped.
 - If the work clearly moves to a different project or work item, start a timer on the new task. The thread's previous timer stops by itself, because a thread owns one timer at a time.
 - If you started under General and the right project becomes clear, start the timer on a task in that project. The time so far stays in General, where the user can move the task with Move to project.

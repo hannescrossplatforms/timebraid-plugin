@@ -1,7 +1,7 @@
 {
   "name": "timebraid",
   "displayName": "Timebraid",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Tracks the time of every Claude Code thread in Timebraid, in the right workspace and project, and lets Claude log time and read your totals.",
   "author": { "name": "Hannes van Tonder" },
   "homepage": "https://github.com/hannescrossplatforms/timebraid-plugin",

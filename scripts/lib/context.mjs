@@ -36,6 +36,10 @@ export function tracking(state) {
   return `This thread is tracked in Timebraid: ${label(state)}, entry ${state.entryId}. Keep working; do not start another timer for the same work.`
 }
 
+export function shared(state) {
+  return `This thread shares the Timebraid timer of the thread that started it: ${label(state)}, entry ${state.entryId}. The plugin keeps that timer alive while you work. Do not start or stop a timer unless the user asks.`
+}
+
 export function paused(state) {
   return `This thread was tracked in Timebraid as ${label(state)}. Its timer stopped while the thread was quiet or closed, and a new one starts on the same task with the next message.`
 }

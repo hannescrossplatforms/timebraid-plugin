@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, it } from 'node:test'
-import { onPrompt, onSessionEnd, onSessionStart, onTool, onToolStart, onTurnEnd, TOOL_PREFIX } from '../scripts/lib/tracker.mjs'
+import { onPrompt, onSessionEnd, onSessionStart, onTool, onToolStart, onTurnEnd, shareOf, TOOL_PREFIX } from '../scripts/lib/tracker.mjs'
 import { at, context, entry, fakeClient, MINUTE, refused, T0, tempDir, unreachable } from './helpers.mjs'
 
 const START = `${TOOL_PREFIX}start_timer`
@@ -233,6 +233,73 @@ describe('ending', () => {
     await onSessionStart({ session_id: 'thread-z', cwd: '/w', source: 'startup' }, at(ctx, T0 + 31 * 24 * 60 * MINUTE))
     assert.equal(ctx.store.session('thread-a'), null)
     assert.notEqual(ctx.store.session('thread-z'), null)
+  })
+})
+
+describe("a helper thread sharing its parent's timer", () => {
+  const share = () => JSON.stringify({ entryId: 'entry-1', taskId: 'task-1', task: 'Login redirect bug', projectId: 'project-1', project: 'Website', workspaceId: 'ws-1', workspace: 'Baker Street Properties' })
+  const helper = (over = {}) => ({ session_id: 'helper-a', cwd: '/work/baker-wt', ...over })
+
+  it('adopts the shared timer at start, keeps it alive from its own hooks, and tells Claude not to start another', async () => {
+    const ctx = context({ env: { TIMEBRAID_SHARED_TIMER: share() } })
+    const first = await onSessionStart(helper({ source: 'startup' }), ctx)
+    assert.match(first.context, /shares the Timebraid timer of the thread that started it: "Login redirect bug" in Baker Street Properties \/ Website, entry entry-1/)
+    assert.match(first.context, /Do not start or stop a timer/)
+    const state = ctx.store.session('helper-a')
+    assert.deepEqual([state.status, state.shared, state.entryId, state.taskId], ['running', true, 'entry-1', 'task-1'])
+    assert.deepEqual(ctx.client.calls, [{ name: 'keep_alive', args: { entry: 'entry-1' } }])
+    assert.deepEqual(await onPrompt(helper({ prompt: 'look into the login redirect' }), at(ctx, T0 + MINUTE)), {})
+    await onTool(helper({ tool_name: 'Grep', tool_input: {}, tool_response: 'ok' }), at(ctx, T0 + 6 * MINUTE))
+    assert.equal(beats(ctx.client).length, 3)
+    assert.equal(names(ctx.client).includes('start_timer'), false)
+  })
+
+  it('never stops the shared timer when the helper ends, and leaves the folder memory alone', async () => {
+    const ctx = context({ env: { TIMEBRAID_SHARED_TIMER: share() } })
+    await onSessionStart(helper({ source: 'startup' }), ctx)
+    await onSessionEnd(helper({ reason: 'other' }), at(ctx, T0 + 5 * MINUTE))
+    assert.equal(names(ctx.client).includes('stop_timer'), false)
+    assert.equal(ctx.store.session('helper-a').status, 'idle')
+    assert.deepEqual(ctx.store.places(), {})
+  })
+
+  it('starts the task again when the shared timer was stopped meanwhile, still without owning the stop', async () => {
+    const client = fakeClient({
+      keep_alive: (args, count) => (count === 1 ? refused('Login redirect bug is not running any more.') : {}),
+      start_timer: refused('Login redirect bug is already running.', { entry: entry({ id: 'entry-2' }) })
+    })
+    const ctx = context({ client, env: { TIMEBRAID_SHARED_TIMER: share() } })
+    await onSessionStart(helper({ source: 'startup' }), ctx)
+    assert.equal(ctx.store.session('helper-a').status, 'idle')
+    await onPrompt(helper({ prompt: 'go' }), at(ctx, T0 + MINUTE))
+    const state = ctx.store.session('helper-a')
+    assert.deepEqual([state.status, state.entryId, state.shared], ['running', 'entry-2', true])
+    await onSessionEnd(helper({ reason: 'other' }), at(ctx, T0 + 9 * MINUTE))
+    assert.equal(names(client).includes('stop_timer'), false)
+  })
+
+  it('leaves the shared timer running when Claude starts a timer of its own in the helper, which the helper then owns', async () => {
+    const ctx = context({ env: { TIMEBRAID_SHARED_TIMER: share() } })
+    await onSessionStart(helper({ source: 'startup' }), ctx)
+    await onTool(helper(started(entry({ id: 'entry-9', taskId: 'task-9', task: 'Other work' }))), at(ctx, T0 + MINUTE))
+    assert.equal(names(ctx.client).includes('stop_timer'), false)
+    const state = ctx.store.session('helper-a')
+    assert.deepEqual([state.entryId, state.shared], ['entry-9', false])
+    await onSessionEnd(helper({ reason: 'other' }), at(ctx, T0 + 2 * MINUTE))
+    assert.equal(names(ctx.client).includes('stop_timer'), true)
+  })
+
+  it('ignores a malformed share and tracks the helper like any other thread', async () => {
+    const ctx = context({ env: { TIMEBRAID_SHARED_TIMER: '{"entryId": 5}' } })
+    const first = await onSessionStart(helper({ source: 'startup' }), ctx)
+    assert.match(first.context, /No timer is running/)
+    assert.equal(ctx.client.calls.length, 0)
+  })
+
+  it('describes a running thread as a share for the helper script, and nothing for a stopped one', () => {
+    const running = { status: 'running', entryId: 'entry-1', taskId: 'task-1', task: 'T', projectId: 'p', project: 'P', workspaceId: 'w', workspace: 'W', beatAt: 1 }
+    assert.deepEqual(shareOf(running), { entryId: 'entry-1', taskId: 'task-1', task: 'T', projectId: 'p', project: 'P', workspaceId: 'w', workspace: 'W' })
+    assert.equal(shareOf({ status: 'idle', entryId: null }), null)
   })
 })
 

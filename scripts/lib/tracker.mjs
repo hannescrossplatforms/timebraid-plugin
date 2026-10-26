@@ -61,6 +61,23 @@ function adopt(state, entry, ctx) {
   }
 }
 
+const SHARE_FIELDS = ['entryId', 'taskId', 'task', 'projectId', 'project', 'workspaceId', 'workspace']
+
+export function sharedTimer(env = {}) {
+  let share
+  try {
+    share = JSON.parse(env.TIMEBRAID_SHARED_TIMER ?? '')
+  } catch {
+    return null
+  }
+  if (!share || typeof share.entryId !== 'string' || share.entryId === '') return null
+  return Object.fromEntries(SHARE_FIELDS.map((field) => [field, typeof share[field] === 'string' ? share[field] : null]))
+}
+
+export const shareOf = (state) => (state.status === 'running' && state.entryId ? Object.fromEntries(SHARE_FIELDS.map((field) => [field, state[field]])) : null)
+
+const joinShare = (state, share, ctx) => ({ ...adopt(state, { ...share, id: share.entryId }, ctx), shared: true })
+
 async function stopEntry(state, ctx, { at, automatic = false } = {}) {
   const args = { entry: state.entryId }
   if (at !== undefined) args.at = at
@@ -115,12 +132,14 @@ function prune(currentId, ctx) {
 function takeHandover(state, ctx) {
   const handover = ctx.store.takeHandover(state.cwd)
   if (!handover || ctx.now - handover.at > HANDOVER_MS || handover.state?.status !== 'running') return state
-  const { status, entryId, startedAt, taskId, task, projectId, project, workspaceId, workspace, beatAt, leaseUntil } = handover.state
-  return { ...state, status, entryId, startedAt, taskId, task, projectId, project, workspaceId, workspace, beatAt, leaseUntil, lastActivity: ctx.now }
+  const { status, entryId, startedAt, taskId, task, projectId, project, workspaceId, workspace, beatAt, leaseUntil, shared = false } = handover.state
+  return { ...state, status, entryId, startedAt, taskId, task, projectId, project, workspaceId, workspace, beatAt, leaseUntil, shared, lastActivity: ctx.now }
 }
 
+const tracking = (state) => (state.shared ? say.shared(state) : say.tracking(state))
+
 function describe(state, ctx) {
-  if (state.status === 'running') return say.tracking(state)
+  if (state.status === 'running') return tracking(state)
   if (state.status === 'idle') return say.paused(state)
   if (state.status === 'off') return say.off()
   return say.startTracking(hintsFor(state, ctx))
@@ -134,6 +153,8 @@ export async function onSessionStart(input, ctx) {
   }
   prune(state.sessionId, ctx)
   if (input.source === 'clear' && ['untracked', 'idle'].includes(state.status)) state = takeHandover(state, ctx)
+  const share = state.status === 'untracked' ? sharedTimer(ctx.env) : null
+  if (share) state = await keepAlive(joinShare(state, share, ctx), ctx)
   save(state, ctx)
   return { context: describe(state, ctx) }
 }
@@ -149,7 +170,7 @@ export async function onPrompt(input, ctx) {
   state = await beat(state, ctx)
   save({ ...state, lastActivity: ctx.now }, ctx)
   if (state.status === 'untracked') return { context: say.reminder(hintsFor(state, ctx)) }
-  if (state.status === 'running' && before && state.entryId !== before) return { context: say.tracking(state) }
+  if (state.status === 'running' && before && state.entryId !== before) return { context: tracking(state) }
   return {}
 }
 
@@ -158,8 +179,8 @@ async function onTimebraidTool(tool, input, ctx) {
   const outcome = resultOf(input.tool_response)
   if (outcome && !outcome.isError && tool === 'start_timer' && outcome.structured.entry?.id) {
     const entry = outcome.structured.entry
-    if (state.status === 'running' && state.entryId && state.entryId !== entry.id && !ctx.config.problem) await stopEntry(state, ctx)
-    state = adopt(state, entry, ctx)
+    if (state.status === 'running' && state.entryId && state.entryId !== entry.id && !state.shared && !ctx.config.problem) await stopEntry(state, ctx)
+    state = { ...adopt(state, entry, ctx), shared: false }
     if (entry.workspaceId && entry.projectId && state.cwd) {
       ctx.store.savePlace(state.cwd, { workspaceId: entry.workspaceId, workspace: entry.workspace, projectId: entry.projectId, project: entry.project, at: ctx.now })
     }
@@ -214,6 +235,10 @@ export async function onSessionEnd(input, ctx) {
   if (!state || state.status !== 'running' || ctx.config.problem) return {}
   if (input.reason === 'clear') {
     ctx.store.saveHandover(state.cwd, { at: ctx.now, state })
+    save(stopped(state, 'idle'), ctx)
+    return {}
+  }
+  if (state.shared) {
     save(stopped(state, 'idle'), ctx)
     return {}
   }

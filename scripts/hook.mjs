@@ -24,7 +24,7 @@ async function main() {
   if (!handler || typeof input.session_id !== 'string') return
   const config = readConfig()
   const store = createStore(config.dataDir)
-  const ctx = { config, store, client: createClient({ url: config.url, token: config.token }), now: Date.now() }
+  const ctx = { config, store, client: createClient({ url: config.url, token: config.token }), now: Date.now(), env: process.env }
   try {
     const result = await handler(input, ctx)
     if (result?.context && EVENT_NAMES[event]) {
